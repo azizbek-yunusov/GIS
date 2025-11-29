@@ -1,555 +1,381 @@
-# GIS
-# 🗺️ Map Technologies - Davomi
+## 📍 1. MAP TEXNOLOGIYALARI: Leaflet / Mapbox / MapLibre
 
-## 📍 1. MAP TEXNOLOGIYALARI - Davomi
+### Asosiy Savollar
 
-**8. GeoJSON Point, LineString, Polygon strukturalari**
+**1. Leaflet va Mapbox/MapLibre orasidagi asosiy farqlar?**
 
-**Point (Nuqta):**
+**Leaflet:**
+- Oddiy, yengil (39KB)
+- Raster tile'lar bilan ishlaydi
+- Plugin ekosistemasi katta
+- 2D xaritalar uchun ideal
+- Canvas/SVG rendering
+
+**Mapbox/MapLibre:**
+- WebGL-based rendering
+- Vector tile'lar bilan ishlaydi
+- 3D, terrain, extrusion qo'llab-quvvatlaydi
+- Style specification (JSON format)
+- Performance yuqori (GPU acceleration)
+- MapLibre - Mapbox'ning open-source versiyasi
+
+**Qachon qaysi birini tanlash:**
+- Oddiy 2D xarita kerak → Leaflet
+- 3D, ko'p data, murakkab styling → Mapbox/MapLibre
+
+---
+
+**2. Tile layer nima? Raster va vector tile'lar farqi?**
+
+**Tile Layer:**
+- Xarita katta rasmni kichik kvadrat bo'laklarga (tile) bo'lib yuklash
+- Har bir tile 256x256 yoki 512x512 piksel
+- Zoom level bo'yicha: 0 (dunyo), 18+ (ko'cha darajasi)
+
+**Raster Tiles:**
+```
+- PNG/JPG formatda
+- Oldindan render qilingan rasmlar
+- Har bir zoom uchun alohida rasmlar
+- Katta hajm (MB)
+- Style o'zgartirish mumkin emas
+- Misol: OpenStreetMap tiles
+```
+
+**Vector Tiles:**
+```
+- Geometrik data (points, lines, polygons)
+- PBF (Protocol Buffer) formatda
+- Client-side rendering
+- Kichik hajm (KB)
+- Runtime'da style o'zgartirish mumkin
+- Rotatsiya, tilt qo'llab-quvvatlaydi
+```
+
+---
+
+**3. Leafletda juda ko'p markerlar qo'shilganda performance qanday pasayadi? Optimallashtiriladi?**
+
+**Muammo:**
+- Har bir marker - alohida DOM element
+- 1000+ markerlar → DOM bloated → lag
+- Har bir marker event listenerlar tutadi
+
+**Yechimlar:**
+
 ```javascript
-{
-  "type": "Feature",
-  "geometry": {
-    "type": "Point",
-    "coordinates": [69.2401, 41.2995] // [longitude, latitude]
-  },
-  "properties": {
-    "name": "Tashkent",
-    "population": 2500000,
-    "type": "city"
+// ❌ Yomon: Har bir marker alohida
+markers.forEach(point => {
+  L.marker([point.lat, point.lng]).addTo(map);
+});
+
+// ✅ Yaxshi 1: Marker Clustering
+const markers = L.markerClusterGroup();
+points.forEach(point => {
+  markers.addLayer(L.marker([point.lat, point.lng]));
+});
+map.addLayer(markers);
+
+// ✅ Yaxshi 2: Canvas Renderer
+const canvas = L.canvas();
+points.forEach(point => {
+  L.circleMarker([point.lat, point.lng], {
+    renderer: canvas,
+    radius: 5
+  }).addTo(map);
+});
+
+// ✅ Yaxshi 3: Virtualization (faqat visible markerlar)
+map.on('moveend', () => {
+  const bounds = map.getBounds();
+  const visiblePoints = points.filter(p => 
+    bounds.contains([p.lat, p.lng])
+  );
+  updateMarkers(visiblePoints);
+});
+
+// ✅ Yaxshi 4: GeoJSON layer
+L.geoJSON(geojsonData, {
+  pointToLayer: (feature, latlng) => {
+    return L.circleMarker(latlng);
   }
+}).addTo(map);
+```
+
+---
+
+**4. Marker cluster qanday ishlaydi va qachon kerak bo'ladi?**
+
+**Ishlash prinsipi:**
+```
+1. Markerlar koordinatalari bo'yicha guruhlangan
+2. Zoom out → yaqin markerlar birlashadi
+3. Zoom in → clusterlar ajraladi
+4. Har bir clusterda markerlar soni ko'rsatiladi
+```
+
+**Implementatsiya:**
+```javascript
+const markers = L.markerClusterGroup({
+  // Cluster radius (px)
+  maxClusterRadius: 80,
+  
+  // Animatsiya
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: true,
+  
+  // Custom icon
+  iconCreateFunction: (cluster) => {
+    const count = cluster.getChildCount();
+    let size = 'small';
+    if (count > 100) size = 'large';
+    else if (count > 10) size = 'medium';
+    
+    return L.divIcon({
+      html: `<div><span>${count}</span></div>`,
+      className: `marker-cluster marker-cluster-${size}`,
+      iconSize: L.point(40, 40)
+    });
+  }
+});
+
+// Markerlarni qo'shish
+locations.forEach(loc => {
+  const marker = L.marker([loc.lat, loc.lng]);
+  marker.bindPopup(loc.name);
+  markers.addLayer(marker);
+});
+
+map.addLayer(markers);
+```
+
+**Qachon kerak:**
+- 100+ markerlar
+- Markerlar yaqin joylashgan
+- Mobile devices (performance)
+- Data density yuqori
+
+---
+
+**5. Custom icon va popup'larni qanday yaratish va optimallashtirish?**
+
+**Custom Icon:**
+```javascript
+// Simple icon
+const customIcon = L.icon({
+  iconUrl: '/markers/custom.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32]
+});
+
+// DivIcon (HTML-based, yaxshiroq)
+const divIcon = L.divIcon({
+  html: `
+    <div class="custom-marker">
+      <img src="${user.avatar}" />
+      <span class="status ${user.status}"></span>
+    </div>
+  `,
+  className: 'custom-marker-wrapper',
+  iconSize: [40, 40]
+});
+
+// SVG icon (masshtablanadigan)
+const svgIcon = L.divIcon({
+  html: `
+    <svg width="24" height="24">
+      <circle cx="12" cy="12" r="10" fill="#FF5733"/>
+      <text x="12" y="16" text-anchor="middle" fill="white" 
+            font-size="12">${count}</text>
+    </svg>
+  `,
+  className: 'svg-marker'
+});
+```
+
+**Custom Popup Optimallashtiruvi:**
+```javascript
+// ❌ Yomon: Har bir marker uchun popup yaratish
+markers.forEach(m => {
+  m.bindPopup(`<div class="popup">${m.data}</div>`);
+});
+
+// ✅ Yaxshi: Lazy popup creation
+const popup = L.popup();
+
+markers.forEach(m => {
+  m.on('click', (e) => {
+    popup
+      .setLatLng(e.latlng)
+      .setContent(generatePopupContent(m.data))
+      .openOn(map);
+  });
+});
+
+// ✅ Yaxshi: Popup pooling
+const popupPool = new Map();
+
+function getPopup(id) {
+  if (!popupPool.has(id)) {
+    popupPool.set(id, createPopup(id));
+  }
+  return popupPool.get(id);
+}
+
+// ✅ Yaxshi: Virtual scrolling in popup
+function createLargePopup(items) {
+  return `
+    <div class="popup-content" style="max-height: 300px; overflow-y: auto">
+      ${items.slice(0, 50).map(item => `
+        <div class="item">${item.name}</div>
+      `).join('')}
+    </div>
+  `;
 }
 ```
 
-**LineString (Chiziq):**
-```javascript
-{
-  "type": "Feature",
-  "geometry": {
-    "type": "LineString",
-    "coordinates": [
-      [69.2401, 41.2995], // Tashkent
-      [69.5964, 40.8378], // Samarkand
-      [66.9597, 39.6542]  // Bukhara
-    ]
-  },
-  "properties": {
-    "name": "M39 Highway",
-    "distance": 550,
-    "type": "highway"
-  }
-}
-```
+---
 
-**Polygon (Ko'pburchak):**
-```javascript
-{
-  "type": "Feature",
-  "geometry": {
-    "type": "Polygon",
-    "coordinates": [
-      // Outer ring (tashqi chegara)
-      [
-        [69.1, 41.2],
-        [69.3, 41.2],
-        [69.3, 41.4],
-        [69.1, 41.4],
-        [69.1, 41.2] // Oxirgi nuqta = birinchi nuqta
-      ],
-      // Inner ring (teshik) - optional
-      [
-        [69.15, 41.25],
-        [69.25, 41.25],
-        [69.25, 41.35],
-        [69.15, 41.35],
-        [69.15, 41.25]
-      ]
-    ]
-  },
-  "properties": {
-    "name": "Tashkent District",
-    "area": 334.8
-  }
-}
-```
+**6. Mapbox style specification qanday ishlaydi?**
 
-**MultiPoint, MultiLineString, MultiPolygon:**
-```javascript
-// MultiPolygon (ko'p polygonlar)
-{
-  "type": "Feature",
-  "geometry": {
-    "type": "MultiPolygon",
-    "coordinates": [
-      [
-        [[69.1, 41.2], [69.3, 41.2], [69.3, 41.4], [69.1, 41.2]]
-      ],
-      [
-        [[69.5, 41.5], [69.7, 41.5], [69.7, 41.7], [69.5, 41.5]]
-      ]
-    ]
-  },
-  "properties": {
-    "name": "Uzbekistan Provinces"
-  }
-}
-```
+Mapbox style - bu JSON format xarita qanday ko'rinishini belgilaydi:
 
-**FeatureCollection:**
 ```javascript
 {
-  "type": "FeatureCollection",
-  "features": [
+  "version": 8,
+  "name": "Custom Style",
+  
+  // 1. SOURCES - data manbalari
+  "sources": {
+    "restaurants": {
+      "type": "geojson",
+      "data": "/api/restaurants.geojson"
+    },
+    "mapbox-streets": {
+      "type": "vector",
+      "url": "mapbox://mapbox.mapbox-streets-v8"
+    }
+  },
+  
+  // 2. LAYERS - qanday chizish
+  "layers": [
     {
-      "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [69.24, 41.29] },
-      "properties": { "city": "Tashkent" }
+      "id": "restaurant-points",
+      "type": "circle",
+      "source": "restaurants",
+      
+      // Filter
+      "filter": ["==", ["get", "type"], "fast-food"],
+      
+      // Paint properties
+      "paint": {
+        "circle-radius": [
+          "interpolate", ["linear"], ["zoom"],
+          10, 3,
+          15, 8
+        ],
+        "circle-color": [
+          "match", ["get", "rating"],
+          5, "#00FF00",
+          4, "#FFFF00",
+          "#FF0000"
+        ],
+        "circle-opacity": 0.8
+      }
     },
     {
-      "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [69.59, 40.83] },
-      "properties": { "city": "Samarkand" }
+      "id": "restaurant-labels",
+      "type": "symbol",
+      "source": "restaurants",
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-size": 12,
+        "text-offset": [0, 1.5]
+      }
     }
   ]
 }
 ```
 
----
-
-**9. Choropleth xaritalar qanday yaratiladi?**
-
-Choropleth - bu polygonlarni qiymat bo'yicha rangga bo'yash (masalan, populyatsiya, daromad).
-
-**Leaflet bilan:**
+**Dynamic style update:**
 ```javascript
-// 1. Data tayyorlash
-const provinceData = {
-  'Tashkent': { population: 2500000, density: 750 },
-  'Samarkand': { population: 550000, density: 190 },
-  'Bukhara': { population: 280000, density: 70 }
-};
-
-// 2. Rang funksiyasi
-function getColor(density) {
-  return density > 500 ? '#800026' :
-         density > 300 ? '#BD0026' :
-         density > 200 ? '#E31A1C' :
-         density > 100 ? '#FC4E2A' :
-         density > 50  ? '#FD8D3C' :
-         density > 20  ? '#FEB24C' :
-         density > 10  ? '#FED976' :
-                         '#FFEDA0';
-}
-
-// 3. Style funksiyasi
-function style(feature) {
-  const provinceName = feature.properties.name;
-  const density = provinceData[provinceName]?.density || 0;
-  
-  return {
-    fillColor: getColor(density),
-    weight: 2,
-    opacity: 1,
-    color: 'white',
-    dashArray: '3',
-    fillOpacity: 0.7
-  };
-}
-
-// 4. GeoJSON layer
-L.geoJSON(provincesGeoJSON, {
-  style: style,
-  onEachFeature: (feature, layer) => {
-    const name = feature.properties.name;
-    const data = provinceData[name];
-    
-    layer.bindPopup(`
-      <strong>${name}</strong><br>
-      Population: ${data.population.toLocaleString()}<br>
-      Density: ${data.density} per km²
-    `);
-    
-    // Hover effect
-    layer.on({
-      mouseover: (e) => {
-        e.target.setStyle({
-          weight: 5,
-          color: '#666',
-          fillOpacity: 0.9
-        });
-      },
-      mouseout: (e) => {
-        e.target.setStyle(style(feature));
-      }
-    });
-  }
-}).addTo(map);
-
-// 5. Legend qo'shish
-const legend = L.control({ position: 'bottomright' });
-
-legend.onAdd = function() {
-  const div = L.DomUtil.create('div', 'info legend');
-  const grades = [0, 10, 20, 50, 100, 200, 300, 500];
-  
-  div.innerHTML = '<h4>Population Density</h4>';
-  
-  for (let i = 0; i < grades.length; i++) {
-    div.innerHTML +=
-      `<i style="background:${getColor(grades[i] + 1)}"></i> ` +
-      grades[i] + (grades[i + 1] ? `&ndash;${grades[i + 1]}<br>` : '+');
-  }
-  
-  return div;
-};
-
-legend.addTo(map);
-```
-
-**Mapbox bilan (data-driven styling):**
-```javascript
+// Layerni qo'shish
 map.addLayer({
-  id: 'choropleth',
-  type: 'fill',
-  source: 'provinces',
+  id: 'traffic',
+  type: 'line',
+  source: 'traffic-source',
   paint: {
-    'fill-color': [
-      'interpolate',
-      ['linear'],
-      ['get', 'density'],
-      0, '#FFEDA0',
-      10, '#FED976',
-      20, '#FEB24C',
-      50, '#FD8D3C',
-      100, '#FC4E2A',
-      200, '#E31A1C',
-      300, '#BD0026',
-      500, '#800026'
-    ],
-    'fill-opacity': 0.7
+    'line-color': ['get', 'congestion_color'],
+    'line-width': 3
   }
 });
 
-// Hover effect
-let hoveredStateId = null;
+// Paint propertyni o'zgartirish
+map.setPaintProperty('traffic', 'line-opacity', 0.5);
 
-map.on('mousemove', 'choropleth', (e) => {
-  if (e.features.length > 0) {
-    if (hoveredStateId !== null) {
-      map.setFeatureState(
-        { source: 'provinces', id: hoveredStateId },
-        { hover: false }
-      );
-    }
-    hoveredStateId = e.features[0].id;
-    map.setFeatureState(
-      { source: 'provinces', id: hoveredStateId },
-      { hover: true }
-    );
-  }
-});
-
-// Hover style
-'fill-opacity': [
-  'case',
-  ['boolean', ['feature-state', 'hover'], false],
-  0.9,
-  0.7
-]
+// Filterni o'zgartirish
+map.setFilter('restaurants', ['>=', ['get', 'rating'], 4]);
 ```
 
 ---
 
-**10. Mapbox'da setData ko'p chaqirilsa nega ishlash sekinlashadi?**
+**7. Layer va source o'rtasida qanday farq bor?**
 
-**Muammo:**
-```javascript
-// ❌ Yomon: Har sekundda butun datani yangilash
-setInterval(() => {
-  map.getSource('vehicles').setData(allVehiclesGeoJSON);
-}, 1000);
-```
+**Source (Data):**
+- Data manbai
+- NIMA ko'rsatish
+- Types: vector, raster, geojson, image, video
 
-**Nima sodir bo'ladi:**
-1. **Parsing overhead** - Har safar butun GeoJSON parse qilinadi
-2. **Rendering** - Butun layer qayta chiziladi
-3. **Memory allocation** - Yangi obyektlar yaratiladi
-4. **GPU upload** - Data GPU'ga qayta yuklanadi
-5. **Garbage collection** - Eski obyektlar tozalanadi
-
-**Yechimlar:**
+**Layer (Visualization):**
+- Data qanday chizilishi
+- QANDAY ko'rsatish  
+- Types: fill, line, circle, symbol, heatmap, fill-extrusion
 
 ```javascript
-// ✅ Yaxshi 1: Faqat o'zgargan datani yuborish
-const previousData = new Map();
+// 1. Source yaratish
+map.addSource('earthquakes', {
+  type: 'geojson',
+  data: '/earthquakes.geojson'
+});
 
-function updateVehicles(newVehicles) {
-  const updated = newVehicles.filter(vehicle => {
-    const prev = previousData.get(vehicle.id);
-    if (!prev) return true;
-    
-    return prev.lat !== vehicle.lat || 
-           prev.lng !== vehicle.lng ||
-           prev.status !== vehicle.status;
-  });
-  
-  if (updated.length === 0) return;
-  
-  // Faqat o'zgarganlarni yangilash
-  const features = updated.map(v => ({
-    type: 'Feature',
-    id: v.id,
-    geometry: {
-      type: 'Point',
-      coordinates: [v.lng, v.lat]
-    },
-    properties: { status: v.status }
-  }));
-  
-  map.getSource('vehicles').setData({
-    type: 'FeatureCollection',
-    features: features
-  });
-  
-  // Cache'ni yangilash
-  updated.forEach(v => previousData.set(v.id, v));
-}
-
-// ✅ Yaxshi 2: Debouncing
-let updateTimeout;
-function scheduleUpdate(data) {
-  clearTimeout(updateTimeout);
-  updateTimeout = setTimeout(() => {
-    map.getSource('vehicles').setData(data);
-  }, 100);
-}
-
-// ✅ Yaxshi 3: RequestAnimationFrame
-let pending = false;
-let latestData = null;
-
-function updateData(data) {
-  latestData = data;
-  
-  if (!pending) {
-    pending = true;
-    requestAnimationFrame(() => {
-      map.getSource('vehicles').setData(latestData);
-      pending = false;
-    });
+// 2. Bir source - ko'p layerlar
+// Layer 1: Kichik earthquakes
+map.addLayer({
+  id: 'small-earthquakes',
+  type: 'circle',
+  source: 'earthquakes',
+  filter: ['<', ['get', 'magnitude'], 5],
+  paint: {
+    'circle-radius': 4,
+    'circle-color': '#FFA500'
   }
-}
+});
 
-// ✅ Yaxshi 4: Feature state (animatsiya uchun)
-// setData o'rniga feature-state ishlatish
-map.setFeatureState(
-  { source: 'vehicles', id: vehicleId },
-  { position: [newLng, newLat], speed: newSpeed }
-);
-
-// ✅ Yaxshi 5: Chunking (katta data uchun)
-async function updateLargeDataset(allFeatures) {
-  const chunkSize = 1000;
-  
-  for (let i = 0; i < allFeatures.length; i += chunkSize) {
-    const chunk = allFeatures.slice(i, i + chunkSize);
-    
-    map.getSource('data').setData({
-      type: 'FeatureCollection',
-      features: chunk
-    });
-    
-    // Browser'ga nafas olish imkoniyati
-    await new Promise(resolve => setTimeout(resolve, 0));
+// Layer 2: Katta earthquakes
+map.addLayer({
+  id: 'large-earthquakes',
+  type: 'circle',
+  source: 'earthquakes',
+  filter: ['>=', ['get', 'magnitude'], 5],
+  paint: {
+    'circle-radius': 10,
+    'circle-color': '#FF0000'
   }
-}
+});
 
-// ✅ Yaxshi 6: Source pooling
-const sourcePool = {
-  active: 'vehicles-a',
-  inactive: 'vehicles-b'
-};
-
-function swapUpdate(newData) {
-  // Inactive sourceni yangilash
-  map.getSource(sourcePool.inactive).setData(newData);
-  
-  // Layerlarni swap qilish
-  map.setLayoutProperty(sourcePool.active, 'visibility', 'none');
-  map.setLayoutProperty(sourcePool.inactive, 'visibility', 'visible');
-  
-  // Pool'ni swap qilish
-  [sourcePool.active, sourcePool.inactive] = 
-    [sourcePool.inactive, sourcePool.active];
-}
-```
-
-**Performance monitoring:**
-```javascript
-let frameCount = 0;
-let lastTime = performance.now();
-
-function monitorPerformance() {
-  frameCount++;
-  const now = performance.now();
-  
-  if (now - lastTime >= 1000) {
-    const fps = Math.round(frameCount * 1000 / (now - lastTime));
-    console.log(`FPS: ${fps}`);
-    
-    if (fps < 30) {
-      console.warn('Performance degradation detected!');
-    }
-    
-    frameCount = 0;
-    lastTime = now;
+// Layer 3: Labels
+map.addLayer({
+  id: 'earthquake-labels',
+  type: 'symbol',
+  source: 'earthquakes',
+  layout: {
+    'text-field': ['get', 'magnitude']
   }
-  
-  requestAnimationFrame(monitorPerformance);
-}
-
-monitorPerformance();
+});
 ```
 
 ---
 
-## MURAKKAB SAVOLLAR
-
-**1. 50k markerlarni real vaqtda ko'rsatish kerak. Qanday yondashuv?**
-
-```javascript
-// Strategiya: Viewport-based rendering + Clustering + WebGL
-
-class HighPerformanceMarkerSystem {
-  constructor(map) {
-    this.map = map;
-    this.allData = []; // 50k markers
-    this.visibleMarkers = new Map();
-    this.clusterThreshold = 15; // zoom level
-    this.canvas = null;
-    
-    this.init();
-  }
-  
-  init() {
-    // 1. WebGL layer uchun canvas yaratish
-    this.canvas = document.createElement('canvas');
-    this.gl = this.canvas.getContext('webgl');
-    
-    // 2. Viewport tracking
-    this.map.on('moveend', () => this.updateVisibleMarkers());
-    this.map.on('zoomend', () => this.handleZoomChange());
-    
-    // 3. Initial render
-    this.updateVisibleMarkers();
-  }
-  
-  // Spatial indexing (QuadTree)
-  buildQuadTree(data) {
-    const tree = new QuadTree({
-      x: -180,
-      y: -90,
-      width: 360,
-      height: 180
-    });
-    
-    data.forEach(point => {
-      tree.insert({
-        x: point.lng,
-        y: point.lat,
-        data: point
-      });
-    });
-    
-    return tree;
-  }
-  
-  updateVisibleMarkers() {
-    const bounds = this.map.getBounds();
-    const zoom = this.map.getZoom();
-    
-    // QuadTree bilan tez qidirish
-    const visible = this.quadTree.query({
-      x: bounds.getWest(),
-      y: bounds.getSouth(),
-      width: bounds.getEast() - bounds.getWest(),
-      height: bounds.getNorth() - bounds.getSouth()
-    });
-    
-    if (zoom >= this.clusterThreshold) {
-      // Individual markers
-      this.renderWebGL(visible);
-    } else {
-      // Clusters
-      this.renderClusters(visible);
-    }
-  }
-  
-  // WebGL rendering (juda tez)
-  renderWebGL(points) {
-    const positions = new Float32Array(points.length * 2);
-    const colors = new Float32Array(points.length * 4);
-    
-    points.forEach((point, i) => {
-      const [x, y] = this.latLngToPixel(point.lat, point.lng);
-      positions[i * 2] = x;
-      positions[i * 2 + 1] = y;
-      
-      // Color
-      colors[i * 4] = point.color.r;
-      colors[i * 4 + 1] = point.color.g;
-      colors[i * 4 + 2] = point.color.b;
-      colors[i * 4 + 3] = 1.0;
-    });
-    
-    // WebGL draw call
-    this.drawPoints(positions, colors);
-  }
-  
-  // Clustering algorithm
-  renderClusters(points) {
-    const gridSize = 60; // px
-    const clusters = new Map();
-    
-    points.forEach(point => {
-      const pixel = this.map.project([point.lat, point.lng]);
-      const gridX = Math.floor(pixel.x / gridSize);
-      const gridY = Math.floor(pixel.y / gridSize);
-      const key = `${gridX},${gridY}`;
-      
-      if (!clusters.has(key)) {
-        clusters.set(key, {
-          points: [],
-          center: pixel,
-          count: 0
-        });
-      }
-      
-      const cluster = clusters.get(key);
-      cluster.points.push(point);
-      cluster.count++;
-    });
-    
-    // Clustersni chizish
-    this.drawClusters(Array.from(clusters.values()));
-  }
-  
-  // Level of Detail (LOD)
-  getPointSize(zoom) {
-    if (zoom < 10) return 2;
-    if (zoom < 15) return 4;
-    return 8;
-  }
-}
-
-// Ishlatish
-const markerSystem = new HighPerformanceMarkerSystem(map);
-
-// Real-time update
-webSocket.on('positions', (updates) => {
-  // Batch update
-  markerSystem.batchUpdate(updates);
-});
-```
-
-**Keyingi javoblarni davom ettirayinmi?** Point-in-polygon, 3D buildings, WebSocket architecture va boshqa murakkab mavzular qoldi.
+Davom ettiraman keyingi qismda? GeoJSON strukturalari va keyingi savollarga o'tamiz.
