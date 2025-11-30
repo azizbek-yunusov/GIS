@@ -1091,3 +1091,727 @@ Ushbu savollar JavaScript middle va senior dasturchilar uchun eng muhim mavzular
 - Node.js fundamentals
 - Browser APIs (Storage, Fetch, WebSockets)
 - Module systems (CommonJS, ES Modules)
+- 
+# Middle/Senior JavaScript Developer Interview Savollari
+
+## 1. Higher-Order Functions va Callbacks
+
+### Savol: Higher-order function nima va misol keltiring?
+**Javob:**
+Higher-order function - bu boshqa funksiyani argument sifatida qabul qiladigan yoki funksiyani qaytaradigan funksiya.
+
+```javascript
+// Function argument sifatida
+const numbers = [1, 2, 3, 4, 5];
+const doubled = numbers.map(num => num * 2);
+
+// Function qaytarish
+function multiplier(factor) {
+  return function(number) {
+    return number * factor;
+  };
+}
+
+const double = multiplier(2);
+const triple = multiplier(3);
+
+console.log(double(5)); // 10
+console.log(triple(5)); // 15
+```
+
+**Amaliy foydalanish:**
+- Array methods (map, filter, reduce)
+- Event handlers
+- Middleware patterns
+- Function composition
+
+---
+
+## 2. Currying va Partial Application
+
+### Savol: Currying nima va qanday ishlaydi?
+**Javob:**
+Currying - ko'p parametrli funksiyani bir parametrli funksiyalar ketma-ketligiga aylantirish.
+
+```javascript
+// Oddiy funksiya
+function add(a, b, c) {
+  return a + b + c;
+}
+
+// Curried versiya
+function curriedAdd(a) {
+  return function(b) {
+    return function(c) {
+      return a + b + c;
+    };
+  };
+}
+
+console.log(curriedAdd(1)(2)(3)); // 6
+
+// ES6 arrow functions bilan
+const curriedAdd2 = a => b => c => a + b + c;
+
+// Partial application
+const add5 = curriedAdd(5);
+const add5And3 = add5(3);
+console.log(add5And3(2)); // 10
+```
+
+**Amaliy misol:**
+```javascript
+// Logger function
+const log = level => message => time => {
+  console.log(`[${level}] ${time}: ${message}`);
+};
+
+const errorLog = log('ERROR');
+const errorLogNow = errorLog(new Date().toISOString());
+errorLogNow('Database connection failed');
+```
+
+---
+
+## 3. Module Pattern va Encapsulation
+
+### Savol: JavaScript da private o'zgaruvchilarni qanday yaratish mumkin?
+**Javob:**
+```javascript
+// IIFE bilan Module Pattern
+const BankAccount = (function() {
+  // Private o'zgaruvchilar
+  let balance = 0;
+  const transactions = [];
+  
+  // Private funksiya
+  function recordTransaction(type, amount) {
+    transactions.push({
+      type,
+      amount,
+      date: new Date(),
+      balance: balance
+    });
+  }
+  
+  // Public API
+  return {
+    deposit(amount) {
+      if (amount > 0) {
+        balance += amount;
+        recordTransaction('deposit', amount);
+        return balance;
+      }
+    },
+    
+    withdraw(amount) {
+      if (amount > 0 && amount <= balance) {
+        balance -= amount;
+        recordTransaction('withdraw', amount);
+        return balance;
+      }
+      throw new Error('Insufficient funds');
+    },
+    
+    getBalance() {
+      return balance;
+    },
+    
+    getTransactionHistory() {
+      return [...transactions]; // Copy qaytarish
+    }
+  };
+})();
+
+// ES6 WeakMap bilan
+const BankAccount2 = (function() {
+  const privateData = new WeakMap();
+  
+  class Account {
+    constructor(initialBalance = 0) {
+      privateData.set(this, {
+        balance: initialBalance,
+        transactions: []
+      });
+    }
+    
+    deposit(amount) {
+      const data = privateData.get(this);
+      data.balance += amount;
+      data.transactions.push({ type: 'deposit', amount });
+      return data.balance;
+    }
+    
+    getBalance() {
+      return privateData.get(this).balance;
+    }
+  }
+  
+  return Account;
+})();
+```
+
+---
+
+## 4. Generators va Iterators
+
+### Savol: Generator function nima va qachon ishlatiladi?
+**Javob:**
+Generator - bu funksiya bajarilishini to'xtatib turish va davom ettirish imkonini beradi.
+
+```javascript
+// Oddiy generator
+function* numberGenerator() {
+  yield 1;
+  yield 2;
+  yield 3;
+}
+
+const gen = numberGenerator();
+console.log(gen.next()); // { value: 1, done: false }
+console.log(gen.next()); // { value: 2, done: false }
+console.log(gen.next()); // { value: 3, done: false }
+console.log(gen.next()); // { value: undefined, done: true }
+
+// Infinite generator
+function* idGenerator() {
+  let id = 1;
+  while (true) {
+    yield id++;
+  }
+}
+
+const ids = idGenerator();
+console.log(ids.next().value); // 1
+console.log(ids.next().value); // 2
+
+// Amaliy misol: Pagination
+function* paginate(array, pageSize) {
+  for (let i = 0; i < array.length; i += pageSize) {
+    yield array.slice(i, i + pageSize);
+  }
+}
+
+const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const pages = paginate(data, 3);
+
+for (const page of pages) {
+  console.log(page); // [1,2,3], [4,5,6], [7,8,9], [10]
+}
+
+// Async generator
+async function* fetchUsers(userIds) {
+  for (const id of userIds) {
+    const response = await fetch(`/api/users/${id}`);
+    const user = await response.json();
+    yield user;
+  }
+}
+
+// Foydalanish
+for await (const user of fetchUsers([1, 2, 3])) {
+  console.log(user);
+}
+```
+
+---
+
+## 5. Symbols va Well-Known Symbols
+
+### Savol: Symbol nima va qachon ishlatiladi?
+**Javob:**
+Symbol - bu unique va immutable primitive data type.
+
+```javascript
+// Oddiy symbol
+const id = Symbol('id');
+const id2 = Symbol('id');
+console.log(id === id2); // false
+
+// Object property sifatida
+const user = {
+  name: 'John',
+  [id]: 123 // Symbol property
+};
+
+console.log(user[id]); // 123
+console.log(Object.keys(user)); // ['name'] - Symbol ko'rinmaydi
+
+// Well-known symbols
+const myArray = {
+  data: [1, 2, 3, 4, 5],
+  [Symbol.iterator]() {
+    let index = 0;
+    return {
+      next: () => {
+        if (index < this.data.length) {
+          return { value: this.data[index++], done: false };
+        }
+        return { done: true };
+      }
+    };
+  }
+};
+
+for (const item of myArray) {
+  console.log(item); // 1, 2, 3, 4, 5
+}
+
+// Symbol.toStringTag
+class MyClass {
+  get [Symbol.toStringTag]() {
+    return 'MyClass';
+  }
+}
+
+console.log(Object.prototype.toString.call(new MyClass())); 
+// [object MyClass]
+```
+
+---
+
+## 6. Proxy va Reflect
+
+### Savol: Proxy object nima va qanday ishlatiladi?
+**Javob:**
+Proxy - bu object operatsiyalarini to'sib olish (intercept) va qayta aniqlash imkonini beradi.
+
+```javascript
+// Validation proxy
+const validator = {
+  set(target, property, value) {
+    if (property === 'age') {
+      if (typeof value !== 'number' || value < 0 || value > 120) {
+        throw new TypeError('Age must be a number between 0 and 120');
+      }
+    }
+    target[property] = value;
+    return true;
+  }
+};
+
+const person = new Proxy({}, validator);
+person.age = 25; // OK
+// person.age = -5; // Error!
+
+// Logging proxy
+function createLoggingProxy(obj, name) {
+  return new Proxy(obj, {
+    get(target, property) {
+      console.log(`Reading ${name}.${property}`);
+      return Reflect.get(target, property);
+    },
+    set(target, property, value) {
+      console.log(`Writing ${name}.${property} = ${value}`);
+      return Reflect.set(target, property, value);
+    }
+  });
+}
+
+const user = createLoggingProxy({ name: 'John' }, 'user');
+user.name; // Log: Reading user.name
+user.age = 30; // Log: Writing user.age = 30
+
+// Default values proxy
+function withDefaults(target, defaults) {
+  return new Proxy(target, {
+    get(obj, prop) {
+      return prop in obj ? obj[prop] : defaults[prop];
+    }
+  });
+}
+
+const config = withDefaults(
+  { port: 3000 },
+  { host: 'localhost', port: 8080 }
+);
+
+console.log(config.port); // 3000
+console.log(config.host); // localhost
+```
+
+---
+
+## 7. WeakMap va WeakSet
+
+### Savol: WeakMap va Map orasidagi farq nima?
+**Javob:**
+```javascript
+// Map - kuchli reference
+const map = new Map();
+let obj = { data: 'important' };
+map.set(obj, 'value');
+obj = null; // obj hali ham Map da saqlanadi (memory leak)
+
+// WeakMap - zaif reference
+const weakMap = new WeakMap();
+let obj2 = { data: 'important' };
+weakMap.set(obj2, 'value');
+obj2 = null; // obj2 garbage collection orqali o'chiriladi
+
+// Amaliy misol: Private data storage
+const privateData = new WeakMap();
+
+class Person {
+  constructor(name, ssn) {
+    this.name = name;
+    privateData.set(this, { ssn }); // SSN ni yashirish
+  }
+  
+  getSSN() {
+    return privateData.get(this).ssn;
+  }
+}
+
+// Cache implementation
+const cache = new WeakMap();
+
+function processData(obj) {
+  if (cache.has(obj)) {
+    console.log('Returning cached result');
+    return cache.get(obj);
+  }
+  
+  console.log('Computing result');
+  const result = expensiveOperation(obj);
+  cache.set(obj, result);
+  return result;
+}
+
+// WeakSet - unique objects
+const visitedNodes = new WeakSet();
+
+function traverse(node) {
+  if (visitedNodes.has(node)) return;
+  
+  visitedNodes.add(node);
+  // Process node
+  node.children?.forEach(traverse);
+}
+```
+
+---
+
+## 8. Composition vs Inheritance
+
+### Savol: JavaScript da composition yaxshiroqmi yoki inheritance?
+**Javob:**
+```javascript
+// Inheritance muammosi
+class Animal {
+  eat() { return 'eating'; }
+  sleep() { return 'sleeping'; }
+}
+
+class Dog extends Animal {
+  bark() { return 'barking'; }
+  swim() { return 'swimming'; }
+}
+
+class Cat extends Animal {
+  meow() { return 'meowing'; }
+  // Cat suzolmaydi, lekin Dog swim() ga ega
+}
+
+// Composition yechimi
+const canEat = (state) => ({
+  eat() {
+    console.log(`${state.name} is eating`);
+  }
+});
+
+const canSleep = (state) => ({
+  sleep() {
+    console.log(`${state.name} is sleeping`);
+  }
+});
+
+const canBark = (state) => ({
+  bark() {
+    console.log(`${state.name} is barking`);
+  }
+});
+
+const canSwim = (state) => ({
+  swim() {
+    console.log(`${state.name} is swimming`);
+  }
+});
+
+// Dog composition
+const createDog = (name) => {
+  const state = { name };
+  return Object.assign(
+    {},
+    canEat(state),
+    canSleep(state),
+    canBark(state),
+    canSwim(state)
+  );
+};
+
+// Cat composition
+const createCat = (name) => {
+  const state = { name };
+  return Object.assign(
+    {},
+    canEat(state),
+    canSleep(state),
+    { meow() { console.log(`${state.name} is meowing`); } }
+  );
+};
+
+const dog = createDog('Rex');
+dog.swim(); // Rex is swimming
+
+const cat = createCat('Whiskers');
+cat.eat(); // Whiskers is eating
+// cat.swim(); // Yo'q!
+```
+
+---
+
+## 9. Microtasks vs Macrotasks
+
+### Savol: Event Loop da microtask va macrotask farqi nima?
+**Javob:**
+```javascript
+console.log('1: Sync');
+
+setTimeout(() => {
+  console.log('2: setTimeout (macrotask)');
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log('3: Promise (microtask)');
+});
+
+console.log('4: Sync');
+
+// Natija:
+// 1: Sync
+// 4: Sync
+// 3: Promise (microtask)
+// 2: setTimeout (macrotask)
+
+// Murakkab misol
+console.log('Start');
+
+setTimeout(() => {
+  console.log('setTimeout 1');
+  Promise.resolve().then(() => {
+    console.log('Promise in setTimeout 1');
+  });
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log('Promise 1');
+  setTimeout(() => {
+    console.log('setTimeout in Promise 1');
+  }, 0);
+});
+
+Promise.resolve().then(() => {
+  console.log('Promise 2');
+});
+
+console.log('End');
+
+// Natija:
+// Start
+// End
+// Promise 1
+// Promise 2
+// setTimeout 1
+// Promise in setTimeout 1
+// setTimeout in Promise 1
+```
+
+---
+
+## 10. Object Destructuring va Rest/Spread
+
+### Savol: Advanced destructuring patternlarni tushuntiring?
+**Javob:**
+```javascript
+// Nested destructuring
+const user = {
+  id: 1,
+  name: 'John',
+  address: {
+    city: 'New York',
+    coordinates: {
+      lat: 40.7128,
+      lng: -74.0060
+    }
+  }
+};
+
+const {
+  name,
+  address: {
+    city,
+    coordinates: { lat, lng }
+  }
+} = user;
+
+// Default values
+const { age = 18, country = 'USA' } = user;
+
+// Renaming
+const { name: userName, id: userId } = user;
+
+// Rest operator
+const { address, ...userWithoutAddress } = user;
+
+// Function parameters
+function displayUser({ name, age = 18, ...rest }) {
+  console.log(name, age, rest);
+}
+
+// Array destructuring with rest
+const [first, second, ...others] = [1, 2, 3, 4, 5];
+console.log(others); // [3, 4, 5]
+
+// Swapping variables
+let a = 1, b = 2;
+[a, b] = [b, a];
+
+// Computed property names
+const key = 'dynamicKey';
+const { [key]: value } = { dynamicKey: 'value' };
+
+// Amaliy misol: API response handling
+async function fetchUser(id) {
+  const response = await fetch(`/api/users/${id}`);
+  const {
+    data: {
+      user: {
+        firstName,
+        lastName,
+        email,
+        profile: { avatar, bio } = {}
+      } = {}
+    } = {}
+  } = await response.json();
+  
+  return { firstName, lastName, email, avatar, bio };
+}
+```
+
+---
+
+## 11. Optional Chaining va Nullish Coalescing
+
+### Savol: ?. va ?? operatorlari qanday ishlaydi?
+**Javob:**
+```javascript
+const user = {
+  name: 'John',
+  address: {
+    city: 'NYC'
+  }
+};
+
+// Optional chaining (?.)
+console.log(user.address?.city); // NYC
+console.log(user.address?.country?.code); // undefined (error emas!)
+console.log(user.contact?.phone); // undefined
+
+// Function chaining
+const result = user.getAddress?.(); // function mavjud bo'lsa chaqiradi
+
+// Array chaining
+const firstItem = user.items?.[0];
+
+// Nullish coalescing (??)
+const port = config.port ?? 3000; // null yoki undefined bo'lsa 3000
+const host = config.host ?? 'localhost';
+
+// || vs ?? farqi
+const value1 = 0 || 10; // 10 (0 falsy)
+const value2 = 0 ?? 10; // 0 (0 null/undefined emas)
+
+const empty = '' || 'default'; // 'default'
+const empty2 = '' ?? 'default'; // ''
+
+// Amaliy misol
+function getUserCity(user) {
+  return user?.address?.city ?? 'Unknown';
+}
+
+// Complex example
+const config = {
+  server: {
+    port: process.env.PORT ?? 3000,
+    host: process.env.HOST ?? 'localhost',
+    timeout: process.env.TIMEOUT ?? 30000
+  },
+  database: {
+    url: process.env.DB_URL ?? 'mongodb://localhost:27017',
+    options: {
+      useNewUrlParser: true,
+      maxPoolSize: process.env.DB_POOL_SIZE ?? 10
+    }
+  }
+};
+```
+
+---
+
+## 12. BigInt va Number Precision
+
+### Savol: JavaScript da katta sonlar bilan qanday ishlash kerak?
+**Javob:**
+```javascript
+// Number limitations
+const maxSafeInt = Number.MAX_SAFE_INTEGER; // 9007199254740991
+console.log(maxSafeInt + 1); // 9007199254740992
+console.log(maxSafeInt + 2); // 9007199254740992 (noto'g'ri!)
+
+// BigInt
+const bigNumber = 9007199254740991n;
+const bigNumber2 = BigInt('9007199254740991');
+
+console.log(bigNumber + 1n); // 9007199254740992n
+console.log(bigNumber + 2n); // 9007199254740993n (to'g'ri!)
+
+// BigInt operations
+const a = 100n;
+const b = 200n;
+console.log(a + b); // 300n
+console.log(a * b); // 20000n
+console.log(b / a); // 2n (integer division)
+
+// BigInt bilan Number aralashtirish mumkin emas
+// console.log(100n + 50); // TypeError!
+console.log(100n + BigInt(50)); // 150n
+console.log(Number(100n) + 50); // 150
+
+// Amaliy misol: Cryptocurrency calculations
+function calculateSatoshis(btc) {
+  const satoshisPerBTC = 100000000n;
+  return BigInt(Math.floor(btc * 100000000)) * 1n;
+}
+
+// Precision masalasi
+console.log(0.1 + 0.2); // 0.30000000000000004
+console.log(0.1 + 0.2 === 0.3); // false
+
+// Yechim: Decimal library yoki integer arithmetic
+function addDecimals(a, b, decimals = 2) {
+  const multiplier = Math.pow(10, decimals);
+  return (Math.round(a * multiplier) + Math.round(b * multiplier)) / multiplier;
+}
+
+console.log(addDecimals(0.1, 0.2)); // 0.3
+```
+
+Men qo'shimcha mavzularni ham qo'shishim mumkin:
+- Web Workers va Multithreading
+- IndexedDB va LocalStorage bilan ishlash
+- Regular Expressions (RegExp) advanced patterns
+- Temporal API (yangi Date API)
+- AbortController va Request cancellation
+
+Qaysi mavzularni ko'proq o'rganishni xohlaysiz?
