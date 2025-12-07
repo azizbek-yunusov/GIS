@@ -569,4 +569,318 @@ import { VacancyCard } from '@/entities/vacancy'; // TO'G'RI
 import { ApplyButton } from '@/features/apply-to-vacancy'; // TO'G'RI
 ```
 
-FSD bilan loyihangiz toza, tartibli va professional bo'ladi! 🚀
+# FSD (Feature-Sliced Design) - To'liq qo'llanma
+
+FSD - bu frontend loyihalarni tashkil qilish uchun arxitektura metodologiyasi. Keling, har bir qatlamni batafsil ko'rib chiqamiz:
+
+## 📚 FSD Qatlamlari (yuqoridan pastga)
+
+### 1. **App** - Ilovaning asosi
+Bu ilova uchun global sozlamalar va konfiguratsiyalar joyi.
+
+**Nima joylashadi:**
+- `providers/` - Global provayderlar (Redux, Router, Theme)
+- `styles/` - Global stillar va CSS o'zgaruvchilar
+- `config/` - Ilova konfiguratsiyalari
+- `index.tsx` - Ilova kirish nuqtasi
+
+**Misol:**
+```
+app/
+├── providers/
+│   ├── StoreProvider.tsx
+│   ├── RouterProvider.tsx
+│   └── ThemeProvider.tsx
+├── styles/
+│   ├── global.css
+│   └── variables.css
+└── index.tsx
+```
+
+### 2. **Pages** - Sahifalar
+Har bir marshrut (route) uchun alohida sahifa. Bu foydalanuvchi ko'radigan to'liq ekranlar.
+
+**Qoidalar:**
+- Faqat sahifa darajasidagi komponentlar
+- Widgets va Features dan foydalanadi
+- Boshqa Pages dan import qilmaydi
+
+**Misol:**
+```
+pages/
+├── home/
+│   ├── ui/
+│   │   └── HomePage.tsx
+│   └── index.ts
+├── profile/
+│   ├── ui/
+│   │   └── ProfilePage.tsx
+│   └── index.ts
+└── products/
+    ├── ui/
+    │   ├── ProductsPage.tsx
+    │   └── ProductDetail.tsx
+    └── index.ts
+```
+
+### 3. **Widgets** - Murakkab komponentlar
+Bu sahifaning katta qismlari - header, sidebar, footer kabi murakkab bloklar.
+
+**Xususiyatlari:**
+- Features va Entities dan tuziladi
+- O'z ichida biznes logika bo'lishi mumkin
+- Qayta ishlatilishi mumkin, lekin majburiy emas
+
+**Misol:**
+```
+widgets/
+├── header/
+│   ├── ui/
+│   │   ├── Header.tsx
+│   │   └── UserMenu.tsx
+│   ├── model/
+│   │   └── useHeader.ts
+│   └── index.ts
+├── sidebar/
+│   ├── ui/
+│   │   └── Sidebar.tsx
+│   └── index.ts
+└── product-card/
+    ├── ui/
+    │   ├── ProductCard.tsx
+    │   └── ProductPrice.tsx
+    ├── model/
+    │   └── useProductCard.ts
+    └── index.ts
+```
+
+### 4. **Features** - Biznes funksiyalar
+Bu foydalanuvchi harakatlari va biznes funksionallik (login, qo'shish, o'chirish va h.k.).
+
+**Qoidalar:**
+- Bitta feature = bitta foydalanuvchi harakati
+- Entities dan foydalanadi
+- Boshqa Features dan import qilmaydi
+
+**Misol:**
+```
+features/
+├── auth/
+│   ├── login/
+│   │   ├── ui/
+│   │   │   └── LoginForm.tsx
+│   │   ├── model/
+│   │   │   ├── loginSlice.ts
+│   │   │   └── useLogin.ts
+│   │   ├── api/
+│   │   │   └── loginApi.ts
+│   │   └── index.ts
+│   └── register/
+│       └── ...
+├── add-to-cart/
+│   ├── ui/
+│   │   └── AddToCartButton.tsx
+│   ├── model/
+│   │   └── useAddToCart.ts
+│   └── index.ts
+└── product-filter/
+    ├── ui/
+    │   └── ProductFilter.tsx
+    ├── model/
+    │   └── filterSlice.ts
+    └── index.ts
+```
+
+### 5. **Entities** - Biznes ob'ektlar
+Bu dasturingizning asosiy ma'lumot ob'ektlari (User, Product, Order va h.k.).
+
+**Xususiyatlari:**
+- Faqat ma'lumotlar va ularning mantiq logikasi
+- Boshqa qatlamlardan mustaqil
+- Qayta ishlatiladi
+
+**Misol:**
+```
+entities/
+├── user/
+│   ├── model/
+│   │   ├── types.ts
+│   │   ├── userSlice.ts
+│   │   └── selectors.ts
+│   ├── api/
+│   │   └── userApi.ts
+│   ├── ui/
+│   │   ├── UserCard.tsx
+│   │   └── UserAvatar.tsx
+│   └── index.ts
+├── product/
+│   ├── model/
+│   │   ├── types.ts
+│   │   └── productSlice.ts
+│   ├── api/
+│   │   └── productApi.ts
+│   ├── ui/
+│   │   └── ProductImage.tsx
+│   └── index.ts
+└── order/
+    └── ...
+```
+
+### 6. **Shared** - Umumiy kod
+Bu loyiha bo'ylab qayta ishlatiladigan, biznes logikaga bog'liq bo'lmagan kod.
+
+**Tuzilishi:**
+```
+shared/
+├── ui/
+│   ├── Button/
+│   ├── Input/
+│   ├── Modal/
+│   └── Card/
+├── lib/
+│   ├── hooks/
+│   │   ├── useDebounce.ts
+│   │   └── useLocalStorage.ts
+│   ├── utils/
+│   │   ├── formatDate.ts
+│   │   └── validators.ts
+│   └── helpers/
+├── api/
+│   ├── axios.ts
+│   └── endpoints.ts
+├── config/
+│   └── constants.ts
+├── types/
+│   └── common.ts
+└── locales/
+    ├── en.json
+    ├── uz.json
+    └── ru.json
+```
+
+## 📁 Har bir slice ichidagi segment tuzilishi
+
+### **ui/** - UI komponentlar
+```typescript
+// features/login/ui/LoginForm.tsx
+export const LoginForm = () => {
+  return <form>...</form>
+}
+```
+
+### **model/** - Ma'lumotlar va holat boshqaruvi
+```typescript
+// entities/user/model/types.ts
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// entities/user/model/userSlice.ts
+export const userSlice = createSlice({
+  name: 'user',
+  initialState,
+  reducers: {...}
+})
+```
+
+### **api/** - Backend bilan aloqa
+```typescript
+// entities/user/api/userApi.ts
+export const userApi = {
+  getUser: (id: string) => axios.get(`/users/${id}`),
+  updateUser: (data: User) => axios.put('/users', data)
+}
+```
+
+### **lib/** - Yordamchi funksiyalar
+```typescript
+// features/auth/lib/validation.ts
+export const validateEmail = (email: string) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+```
+
+### **config/** - Konfiguratsiya
+```typescript
+// features/payment/config/constants.ts
+export const PAYMENT_METHODS = {
+  CARD: 'card',
+  CASH: 'cash'
+}
+```
+
+## 🔗 Import qoidalari
+
+**Ruxsat etilgan importlar (yuqoridan pastga):**
+```
+App → Pages → Widgets → Features → Entities → Shared
+```
+
+**Taqiqlangan:**
+- Pastdan yuqoriga import (masalan: Shared → Features)
+- Bir xil darajadagi slice'lar o'rtasida (masalan: Feature A → Feature B)
+
+## 🌍 Locales va Translations
+
+### Tuzilish:
+```
+shared/
+└── locales/
+    ├── en/
+    │   ├── common.json
+    │   ├── auth.json
+    │   └── products.json
+    ├── uz/
+    │   ├── common.json
+    │   ├── auth.json
+    │   └── products.json
+    └── index.ts
+```
+
+### Misol fayllar:
+```json
+// shared/locales/uz/auth.json
+{
+  "login": "Kirish",
+  "email": "Email",
+  "password": "Parol",
+  "submit": "Yuborish"
+}
+
+// shared/locales/en/auth.json
+{
+  "login": "Login",
+  "email": "Email",
+  "password": "Password",
+  "submit": "Submit"
+}
+```
+
+### Ishlatish:
+```typescript
+// features/login/ui/LoginForm.tsx
+import { useTranslation } from 'react-i18next'
+
+export const LoginForm = () => {
+  const { t } = useTranslation('auth')
+  
+  return (
+    <form>
+      <h1>{t('login')}</h1>
+      <input placeholder={t('email')} />
+    </form>
+  )
+}
+```
+
+## ✅ FSD afzalliklari:
+
+1. **Tushunarli tuzilma** - Har kim tezda yo'naladi
+2. **Oson kengaytirish** - Yangi feature qo'shish oson
+3. **Qayta ishlatish** - Kodning ko'p qismi universal
+4. **Test qilish** - Har bir qism alohida test qilinadi
+5. **Jamoa ishi** - Bir vaqtda turli qatlamlarda ishlash mumkin
+
+Bu FSD arxitekturasi loyihangizni toza, tushunarli va kengaytirilishi oson qiladi!
